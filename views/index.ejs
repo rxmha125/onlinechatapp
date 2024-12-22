@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat App</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #f7fafc;
+        }
+        .container {
+            width: 400px; /* Fixed width */
+        height: 500px; /* Fixed height */
+        margin: 0 auto;
+        padding: 2rem;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+        }
+        .messages {
+            flex-grow: 1;
+        overflow-y: auto;
+        margin-bottom: 1rem;
+        padding-right: 1rem;
+        }
+        .message {
+            background-color: #e2e8f0;
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+        border-radius: 8px;
+        }
+        .username {
+            font-size: 0.8rem;
+            color: #4a5568;
+            margin-bottom: 0.2rem;
+        }
+    </style>
+</head>
+<body class="flex justify-center items-center min-h-screen bg-zinc-800">
+    <div class="container">
+        <h1 id="status" class="text-center text-lg font-bold mb-4">Connecting...</h1>
+        <div id="messages" class="messages"></div>
+        <div class="msg-box flex">
+            <input id="messageInput" type="text" placeholder="Enter your message" 
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+            <button id="sendButton" 
+                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded ml-2">
+                Send
+            </button>
+        </div>
+    </div>
+    <script>
+        const socket = io();
+        let userId = null;
+    
+        // Receive and store the user ID
+        socket.on('userId', (id) => {
+            userId = id;
+        });
+    
+        // Update connection status
+        socket.on('status', (status) => {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = status === 'connected' ? 'Connected' : 'Connecting...';
+        });
+    
+        // Handle sending a message
+        document.getElementById('sendButton').addEventListener('click', () => {
+            const messageInput = document.getElementById('messageInput');
+            const messageText = messageInput.value.trim();
+    
+            if (messageText) {
+                addMessage({ id: userId, text: messageText }, 'right');
+                socket.emit('message', messageText);
+                messageInput.value = '';
+            }
+        });
+    
+        // Display incoming messages
+        socket.on('message', (msg) => {
+            addMessage(msg, 'left');
+        });
+    
+        // Add a message to the messages div
+        function addMessage(msg, side) {
+            const messages = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', side === 'right' ? 'text-right' : 'text-left');
+    
+            const usernameP = document.createElement('p');
+            usernameP.classList.add('username');
+            usernameP.textContent = msg.id === userId ? 'You' : `User: ${msg.id}`;
+    
+            const textP = document.createElement('p');
+            textP.textContent = msg.text;
+    
+            messageDiv.appendChild(usernameP);
+            messageDiv.appendChild(textP);
+            messages.appendChild(messageDiv);
+            messages.scrollTop = messages.scrollHeight;
+        }
+    </script>
+    
+</body>
+</html>

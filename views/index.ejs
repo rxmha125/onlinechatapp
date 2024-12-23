@@ -135,21 +135,22 @@
         const socket = io();
         let userId = null;
         let replyToMessageId = null;
-
+        let typingTimeout;
+    
         socket.on('userId', (id) => {
             userId = id;
         });
-
+    
         socket.on('status', (status) => {
             const statusEl = document.getElementById('status');
             statusEl.textContent = status === 'connected' ? 'Connected' : 'Connecting...';
             statusEl.style.color = status === 'connected' ? '#38a169' : '#e53e3e';
         });
-
+    
         const sendMessage = () => {
             const messageInput = document.getElementById('messageInput');
             const messageText = messageInput.value.trim();
-
+    
             if (messageText) {
                 if (replyToMessageId) {
                     const replyData = {
@@ -172,25 +173,47 @@
                 messageInput.value = '';
             }
         };
-
+    
         document.getElementById('sendButton').addEventListener('click', sendMessage);
-
+    
         document.getElementById('messageInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 sendMessage();
             }
         });
-
+    
+        // Typing feature
+        const messageInput = document.getElementById('messageInput');
+        messageInput.addEventListener('input', () => {
+            socket.emit('typing', userId);
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                socket.emit('stopTyping', userId);
+            }, 2000);
+        });
+    
+        socket.on('typing', (typingUserId) => {
+            if (typingUserId !== userId) {
+                showTypingIndicator(typingUserId);
+            }
+        });
+    
+        socket.on('stopTyping', (typingUserId) => {
+            if (typingUserId !== userId) {
+                hideTypingIndicator(typingUserId);
+            }
+        });
+    
         socket.on('message', (msg) => {
             addMessage(msg, 'left');
             socket.emit('messageSeen', { messageId: msg.timestamp, senderId: msg.id });
         });
-
+    
         socket.on('replyMessage', (data) => {
             const replyText = `Reply to ${data.originalMessageId}: ${data.replyText}`;
             addMessage({ text: replyText, id: data.senderId }, 'left');
         });
-
+    
         socket.on('messageSeen', (data) => {
             const messageDiv = document.querySelector(`[data-message-id="${data.messageId}"]`);
             if (messageDiv) {
@@ -200,23 +223,23 @@
                 messageDiv.appendChild(seenStatus);
             }
         });
-
+    
         function addMessage(msg, side) {
             const messages = document.getElementById('messages');
             const messageContainer = document.createElement('div');
             messageContainer.classList.add('message-container');
-
+    
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message', side === 'right' ? 'right' : 'left');
             messageDiv.dataset.messageId = msg.timestamp;
-
+    
             const usernameP = document.createElement('p');
             usernameP.classList.add('username');
             usernameP.textContent = msg.id === userId ? 'You' : `User: ${msg.id}`;
-
+    
             const textP = document.createElement('p');
             textP.textContent = msg.text;
-
+    
             const replyBtn = document.createElement('button');
             replyBtn.classList.add('reply-btn');
             replyBtn.textContent = 'Reply';
@@ -224,28 +247,42 @@
                 replyToMessageId = msg.timestamp;
                 showReplyBanner(msg.text);
             };
-
+    
             messageDiv.appendChild(usernameP);
             messageDiv.appendChild(textP);
             messageDiv.appendChild(replyBtn);
             messageContainer.appendChild(messageDiv);
             messages.appendChild(messageContainer);
-
+    
             messages.scrollTop = messages.scrollHeight;
         }
-
+    
         function showReplyBanner(text) {
             const replyBanner = document.getElementById('replyBanner');
             replyBanner.textContent = `Replying to: "${text}"`;
             replyBanner.classList.remove('hidden');
         }
-
+    
         function clearReplyBanner() {
             const replyBanner = document.getElementById('replyBanner');
             replyBanner.textContent = '';
             replyBanner.classList.add('hidden');
             replyToMessageId = null;
         }
+    
+        function showTypingIndicator(userId) {
+            const typingBanner = document.getElementById('replyBanner');
+            typingBanner.textContent = `User ${userId} is typing...`;
+            typingBanner.classList.remove('hidden');
+        }
+    
+        function hideTypingIndicator(userId) {
+            const typingBanner = document.getElementById('replyBanner');
+            if (typingBanner.textContent.includes(`User ${userId} is typing...`)) {
+                typingBanner.classList.add('hidden');
+            }
+        }
     </script>
+    
 </body>
 </html>

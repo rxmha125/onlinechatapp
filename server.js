@@ -28,6 +28,18 @@ io.on('connection', (socket) => {
 
     io.emit('status', connectedUsers === 2 ? 'connected' : 'connecting');
 
+    // Handle "typing" event
+    socket.on('typing', (userId) => {
+        console.log(`User ${userId} is typing...`);
+        socket.broadcast.emit('typing', userId);
+    });
+
+    // Handle "stopTyping" event
+    socket.on('stopTyping', (userId) => {
+        console.log(`User ${userId} stopped typing.`);
+        socket.broadcast.emit('stopTyping', userId);
+    });
+
     socket.on('message', (msg) => {
         const messageData = { ...msg, senderId: socket.id };
         console.log('Message received:', messageData); // Debugging

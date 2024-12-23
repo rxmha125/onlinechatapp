@@ -24,15 +24,28 @@ io.on('connection', (socket) => {
     connectedUsers++;
     console.log(`User connected with ID: ${socket.id}. Total users: ${connectedUsers}`);
 
-    // Notify the user of their unique ID
     socket.emit('userId', socket.id);
 
-    // Notify all clients about the connection status
     io.emit('status', connectedUsers === 2 ? 'connected' : 'connecting');
 
-    // Handle incoming messages
     socket.on('message', (msg) => {
-        socket.broadcast.emit('message', { id: socket.id, text: msg });
+        const messageData = { ...msg, senderId: socket.id };
+        console.log('Message received:', messageData); // Debugging
+        socket.broadcast.emit('message', messageData);
+    });
+
+    socket.on('replyMessage', (data) => {
+        console.log('Reply received:', data); // Debugging
+        io.to(data.originalSenderId).emit('replyMessage', {
+            replyText: data.replyText,
+            originalMessageId: data.originalMessageId,
+            senderId: socket.id,
+        });
+    });
+
+    socket.on('messageSeen', (data) => {
+        console.log('messageSeen received:', data); // Debugging
+        io.to(data.senderId).emit('messageSeen', { messageId: data.messageId });
     });
 
     socket.on('disconnect', () => {
@@ -42,6 +55,7 @@ io.on('connection', (socket) => {
     });
 });
 
+// Start the server
 server.listen(PORT, () => {
-    console.log('Server is running on http://localhost:3000');
+    console.log(`Server is running on http://localhost:${PORT}`);
 });
